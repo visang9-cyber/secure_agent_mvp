@@ -34,3 +34,6 @@ logs/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# AutoGen Studio runtime data
+autogenstudio_data/
