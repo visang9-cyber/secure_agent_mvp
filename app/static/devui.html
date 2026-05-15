@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Flow DevUI</title>
+  <style>
+    /* ── Theme variables ──────────────────────────────────── */
+    :root {
+      --bg:               #0d1117;
+      --surface:          #161b22;
+      --surface2:         #21262d;
+      --border:           #30363d;
+      --text:             #e6edf3;
+      --text-muted:       #8b949e;
+      --accent:           #58a6ff;
+      --green:            #3fb950;
+      --red:              #f85149;
+      --purple:           #bc8cff;
+      --node-fill:        #21262d;
+      --node-stroke:      #30363d;
+      --node-active-fill: #1c2d44;
+      --node-active-stroke:#58a6ff;
+      --edge:             #30363d;
+    }
+    [data-theme="light"] {
+      --bg:               #f6f8fa;
+      --surface:          #ffffff;
+      --surface2:         #f6f8fa;
+      --border:           #d0d7de;
+      --text:             #24292f;
+      --text-muted:       #57606a;
+      --accent:           #0969da;
+      --green:            #1a7f37;
+      --red:              #cf222e;
+      --purple:           #8250df;
+      --node-fill:        #ffffff;
+      --node-stroke:      #d0d7de;
+      --node-active-fill: #ddf4ff;
+      --node-active-stroke:#0969da;
+      --edge:             #d0d7de;
+    }
+
+    /* ── Reset & base ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      font-size: 13px;
+    }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Header ───────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 18px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .header-left { display: flex; align-items: center; gap: 10px; }
+    .header-title { font-size: 14px; font-weight: 600; }
+    .chip {
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 20px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-weight: 600;
+      letter-spacing: .4px;
+    }
+    .header-right { display: flex; align-items: center; gap: 6px; }
+    .btn {
+      padding: 5px 11px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background .15s;
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+    .btn:hover { background: var(--border); }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn-primary:hover { opacity: .85; background: var(--accent); }
+
+    /* ── Main layout ──────────────────────────────────────── */
+    main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Left: Topology ───────────────────────────────────── */
+    .panel-left {
+      width: 44%;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .panel-header {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 7px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .topology-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 12px;
+    }
+    svg#topo {
+      width: 100%;
+      max-width: 520px;
+    }
+
+    /* SVG nodes */
+    .agent-node rect {
+      fill: var(--node-fill);
+      stroke: var(--node-stroke);
+      stroke-width: 1.5;
+      transition: fill .3s, stroke .3s, filter .3s;
+    }
+    .agent-node.active rect {
+      fill: var(--node-active-fill);
+      stroke: var(--node-active-stroke);
+      stroke-width: 2;
+      filter: drop-shadow(0 0 7px var(--accent));
+      animation: node-pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes node-pulse {
+      0%,100% { filter: drop-shadow(0 0 7px var(--accent)); }
+      50%      { filter: drop-shadow(0 0 2px var(--accent)); }
+    }
+    .agent-node .n-name {
+      fill: var(--text);
+      font-size: 10.5px;
+      font-family: 'Cascadia Code','Consolas',monospace;
+      font-weight: 500;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+    .agent-node.active .n-name { fill: var(--accent); }
+    .agent-node .n-role {
+      fill: var(--text-muted);
+      font-size: 9px;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
+    /* SVG edges */
+    .edge {
+      stroke: var(--edge);
+      stroke-width: 1.5;
+      fill: none;
+      transition: stroke .3s;
+    }
+    .edge.active {
+      stroke: var(--accent);
+      stroke-width: 2;
+      stroke-dasharray: 6 4;
+      animation: dash-flow .5s linear infinite;
+    }
+    @keyframes dash-flow { to { stroke-dashoffset: -20; } }
+
+    /* Stats strip */
+    .stats-strip {
+      display: flex;
+      gap: 0;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 14px;
+      border-right: 1px solid var(--border);
+      gap: 2px;
+      flex: 1;
+    }
+    .stat:last-child { border-right: none; }
+    .stat-val {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+    .stat-lbl { font-size: 9px; color: var(--text-muted); letter-spacing: .4px; text-transform: uppercase; }
+
+    /* ── Right: Trace ─────────────────────────────────────── */
+    .panel-right {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .trace-log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 0;
+      font-family: 'Cascadia Code','Consolas',monospace;
+      font-size: 11.5px;
+    }
+    .trace-entry {
+      display: flex;
+      align-items: flex-start;
+      gap: 7px;
+      padding: 3px 12px;
+      border-left: 2px solid transparent;
+      line-height: 1.5;
+    }
+    .trace-entry:hover { background: var(--surface2); }
+    .trace-entry.ev-status  { border-left-color: var(--accent); }
+    .trace-entry.ev-card    { border-left-color: var(--green); }
+    .trace-entry.ev-error   { border-left-color: var(--red); background: color-mix(in srgb, var(--red) 5%, transparent); }
+    .trace-entry.ev-done    { border-left-color: var(--purple); }
+    .trace-entry.ev-session { border-left-color: var(--border); }
+
+    .ts {
+      color: var(--text-muted);
+      font-size: 10px;
+      white-space: nowrap;
+      min-width: 70px;
+      padding-top: 2px;
+    }
+    .tbadge {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .4px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      white-space: nowrap;
+      min-width: 54px;
+      text-align: center;
+      margin-top: 2px;
+    }
+    .b-status  { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+    .b-card    { background: color-mix(in srgb, var(--green)  15%, transparent); color: var(--green); }
+    .b-error   { background: color-mix(in srgb, var(--red)    15%, transparent); color: var(--red); }
+    .b-done    { background: color-mix(in srgb, var(--purple) 15%, transparent); color: var(--purple); }
+    .b-session { background: var(--surface2); color: var(--text-muted); }
+    .b-start   { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent); }
+
+    .trace-msg { color: var(--text); word-break: break-all; }
+    .trace-msg .dim { color: var(--text-muted); font-size: 10px; }
+    .trace-msg pre {
+      margin-top: 4px;
+      padding: 5px 8px;
+      background: var(--surface2);
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      white-space: pre-wrap;
+      font-size: 10px;
+      color: var(--text-muted);
+      max-height: 100px;
+      overflow-y: auto;
+      font-family: 'Cascadia Code','Consolas',monospace;
+    }
+
+    /* LLM output panel */
+    .llm-panel {
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      padding: 10px 14px;
+      min-height: 56px;
+      max-height: 130px;
+      overflow-y: auto;
+      display: none;
+    }
+    .llm-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .7px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+    }
+    #llm-text { line-height: 1.6; color: var(--text); font-size: 12.5px; }
+    .cursor {
+      display: inline-block; width: 2px; height: 13px;
+      background: var(--accent);
+      animation: blink .75s step-end infinite;
+      vertical-align: text-bottom; margin-left: 1px;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* Empty state */
+    .empty-state {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      height: 100%; gap: 10px;
+      color: var(--text-muted); font-size: 12px; text-align: center;
+      padding: 20px;
+    }
+    .empty-state svg { opacity: .25; }
+
+    /* ── Footer ───────────────────────────────────────────── */
+    footer {
+      display: flex; gap: 8px; padding: 9px 14px;
+      border-top: 1px solid var(--border);
+      background: var(--surface); flex-shrink: 0;
+    }
+    #q-input {
+      flex: 1; padding: 7px 11px;
+      border-radius: 6px; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text);
+      font-size: 13px; outline: none;
+      transition: border-color .15s;
+    }
+    #q-input:focus { border-color: var(--accent); }
+    #q-input::placeholder { color: var(--text-muted); }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ────────────────────────────────────────────── -->
+<header>
+  <div class="header-left">
+    <span class="header-title">🤖 Agent Flow DevUI</span>
+    <span class="chip">MAF v1.0</span>
+    <span class="chip" id="chip-status" style="display:none;border-color:var(--green);color:var(--green)">● LIVE</span>
+  </div>
+  <div class="header-right">
+    <a href="/" class="btn">💬 Chat UI</a>
+    <button class="btn" id="btn-clear">🗑 Clear</button>
+    <button class="btn" id="btn-theme">☀️</button>
+  </div>
+</header>
+
+<!-- ── Main ──────────────────────────────────────────────── -->
+<main>
+
+  <!-- Left: topology + stats -->
+  <div class="panel-left">
+    <div class="panel-header">Agent Topology</div>
+    <div class="topology-wrap">
+      <svg id="topo" viewBox="0 0 520 215" xmlns="http://www.w3.org/2000/svg">
+
+        <!-- edges -->
+        <line id="edge-weather"  class="edge" x1="260" y1="54" x2="65"  y2="150"/>
+        <line id="edge-golf"     class="edge" x1="260" y1="54" x2="175" y2="150"/>
+        <line id="edge-schedule" class="edge" x1="260" y1="54" x2="315" y2="150"/>
+        <line id="edge-planner"  class="edge" x1="260" y1="54" x2="455" y2="150"/>
+
+        <!-- super_agent -->
+        <g id="node-super" class="agent-node">
+          <rect x="175" y="20" width="170" height="34" rx="8"/>
+          <text class="n-name" x="260" y="33">super_agent</text>
+          <text class="n-role" x="260" y="46">🔀 orchestrator</text>
+        </g>
+
+        <!-- weather_agent -->
+        <g id="node-weather" class="agent-node">
+          <rect x="15" y="150" width="100" height="34" rx="7"/>
+          <text class="n-name" x="65" y="163">weather</text>
+          <text class="n-role" x="65" y="176">☀️ 날씨</text>
+        </g>
+
+        <!-- golf_agent -->
+        <g id="node-golf" class="agent-node">
+          <rect x="125" y="150" width="100" height="34" rx="7"/>
+          <text class="n-name" x="175" y="163">golf</text>
+          <text class="n-role" x="175" y="176">⛳ 골프장</text>
+        </g>
+
+        <!-- schedule_agent -->
+        <g id="node-schedule" class="agent-node">
+          <rect x="265" y="150" width="100" height="34" rx="7"/>
+          <text class="n-name" x="315" y="163">schedule</text>
+          <text class="n-role" x="315" y="176">📅 일정</text>
+        </g>
+
+        <!-- planner_agent -->
+        <g id="node-planner" class="agent-node">
+          <rect x="405" y="150" width="100" height="34" rx="7"/>
+          <text class="n-name" x="455" y="163">planner</text>
+          <text class="n-role" x="455" y="176">🏆 추천</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="stats-strip">
+      <div class="stat">
+        <span class="stat-val" id="s-events">0</span>
+        <span class="stat-lbl">이벤트</span>
+      </div>
+      <div class="stat">
+        <span class="stat-val" id="s-cards">0</span>
+        <span class="stat-lbl">카드</span>
+      </div>
+      <div class="stat">
+        <span class="stat-val" id="s-elapsed">—</span>
+        <span class="stat-lbl">경과</span>
+      </div>
+      <div class="stat">
+        <span class="stat-val" id="s-agent" style="font-size:11px;padding-top:4px">—</span>
+        <span class="stat-lbl">현재 에이전트</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: trace log + LLM output -->
+  <div class="panel-right">
+    <div class="panel-header">Live Trace</div>
+    <div class="trace-log" id="trace-log">
+      <div class="empty-state" id="empty-state">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+        아래에 질문을 입력하면<br>에이전트 실행 흐름이 여기에 표시됩니다.
+      </div>
+    </div>
+    <div class="llm-panel" id="llm-panel">
+      <div class="llm-label">LLM 요약 답변</div>
+      <div id="llm-text"></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── Footer ────────────────────────────────────────────── -->
+<footer>
+  <input id="q-input" type="text"
+         placeholder="예: 이번 주말 날씨랑 골프장 추천해줘" autocomplete="off"/>
+  <button class="btn btn-primary" id="btn-send">전송</button>
+</footer>
+
+<script>
+// ── Theme ────────────────────────────────────────────────────
+const html = document.documentElement;
+const btnTheme = document.getElementById('btn-theme');
+const saved = localStorage.getItem('devui-theme') || 'dark';
+html.dataset.theme = saved;
+btnTheme.textContent = saved === 'dark' ? '☀️' : '🌙';
+btnTheme.addEventListener('click', () => {
+  const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
+  html.dataset.theme = next;
+  localStorage.setItem('devui-theme', next);
+  btnTheme.textContent = next === 'dark' ? '☀️' : '🌙';
+});
+
+// ── State ────────────────────────────────────────────────────
+let abortCtrl  = null;
+let startTime  = null;
+let timerID    = null;
+let eventCount = 0;
+let cardCount  = 0;
+let textSpan   = null;
+let streaming  = false;
+
+const AGENT_KEYS = ['super','weather','golf','schedule','planner'];
+
+// ── Helpers ──────────────────────────────────────────────────
+function esc(s){
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function nowTs(){
+  const d = new Date();
+  return d.toTimeString().slice(0,8) + '.' + String(d.getMilliseconds()).padStart(3,'0');
+}
+
+// ── Agent highlight ──────────────────────────────────────────
+function activateAgent(key) {
+  AGENT_KEYS.forEach(k => {
+    document.getElementById('node-'+k)?.classList.remove('active');
+    document.getElementById('edge-'+k)?.classList.remove('active');
+  });
+  if (!key) { document.getElementById('s-agent').textContent = '—'; return; }
+  document.getElementById('node-'+key)?.classList.add('active');
+  if (key !== 'super') document.getElementById('edge-'+key)?.classList.add('active');
+  document.getElementById('s-agent').textContent = key + '_agent';
+}
+
+function agentFromStatus(msg) {
+  if (msg.includes('의도 분석') || msg.includes('답변 생성') || msg.includes('추천 결과')) return 'super';
+  if (msg.includes('종합 분석')) return 'planner';
+  if (msg.includes('날씨'))      return 'weather';
+  if (msg.includes('골프장'))    return 'golf';
+  if (msg.includes('일정'))      return 'schedule';
+  return 'super';
+}
+
+function agentFromCard(ctype) {
+  return { weather_calendar:'weather', golf_slots:'golf',
+           schedule_list:'schedule', recommendation:'planner' }[ctype] || 'super';
+}
+
+// ── Stats ────────────────────────────────────────────────────
+function updateElapsed() {
+  if (!startTime) return;
+  const ms = Date.now() - startTime;
+  document.getElementById('s-elapsed').textContent =
+    ms < 1000 ? ms + 'ms' : (ms/1000).toFixed(1) + 's';
+}
+
+// ── Trace log ────────────────────────────────────────────────
+function addTrace(evClass, badgeClass, badgeText, msgHtml) {
+  const log = document.getElementById('trace-log');
+  document.getElementById('empty-state')?.remove();
+
+  const el = document.createElement('div');
+  el.className = `trace-entry ${evClass}`;
+  el.innerHTML =
+    `<span class="ts">${nowTs()}</span>`+
+    `<span class="tbadge ${badgeClass}">${badgeText}</span>`+
+    `<span class="trace-msg">${msgHtml}</span>`;
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+
+  eventCount++;
+  document.getElementById('s-events').textContent = eventCount;
+}
+
+// ── Clear ────────────────────────────────────────────────────
+function clearAll() {
+  abortCtrl?.abort(); abortCtrl = null;
+  clearInterval(timerID); timerID = null;
+  startTime = null; eventCount = 0; cardCount = 0; textSpan = null; streaming = false;
+  activateAgent(null);
+  document.getElementById('s-events').textContent  = '0';
+  document.getElementById('s-cards').textContent   = '0';
+  document.getElementById('s-elapsed').textContent = '—';
+  document.getElementById('chip-status').style.display = 'none';
+  document.getElementById('llm-panel').style.display   = 'none';
+  document.getElementById('llm-text').innerHTML = '';
+  document.getElementById('trace-log').innerHTML =
+    `<div class="empty-state" id="empty-state">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+      아래에 질문을 입력하면<br>에이전트 실행 흐름이 여기에 표시됩니다.
+    </div>`;
+  setBtnIdle();
+}
+document.getElementById('btn-clear').addEventListener('click', clearAll);
+
+// ── Send button state ────────────────────────────────────────
+function setBtnBusy() {
+  const b = document.getElementById('btn-send');
+  b.textContent = '■ 중단'; b.className = 'btn';
+  b.onclick = () => { abortCtrl?.abort(); clearInterval(timerID); setBtnIdle(); };
+}
+function setBtnIdle() {
+  const b = document.getElementById('btn-send');
+  b.textContent = '전송'; b.className = 'btn btn-primary';
+  b.onclick = () => send(document.getElementById('q-input').value);
+}
+
+// ── SSE event handler ────────────────────────────────────────
+function handleEvent(ev) {
+  switch (ev.type) {
+
+    case 'session':
+      addTrace('ev-session','b-session','SESSION',
+        `<span class="dim">id: ${esc(ev.session_id)}</span>`);
+      break;
+
+    case 'status': {
+      const ag = agentFromStatus(ev.message || '');
+      activateAgent(ag);
+      addTrace('ev-status','b-status','STATUS', esc(ev.message));
+      break;
+    }
+
+    case 'card': {
+      const card  = ev.card  || {};
+      const ctype = card.type || '?';
+      const ag    = agentFromCard(ctype);
+      activateAgent(ag);
+      cardCount++;
+      document.getElementById('s-cards').textContent = cardCount;
+      const label = {
+        weather_calendar : '☀️ 날씨 카드',
+        golf_slots       : '⛳ 골프 카드',
+        schedule_list    : '📅 일정 카드',
+        recommendation   : '🏆 추천 카드',
+      }[ctype] || ctype;
+      const preview = esc(JSON.stringify(card.data || {}, null, 2).slice(0, 320));
+      addTrace('ev-card','b-card','CARD',
+        `<b>${label}</b> <span class="dim">← ${ag}_agent</span><pre>${preview}…</pre>`);
+      break;
+    }
+
+    case 'text_chunk': {
+      activateAgent('super');
+      const panel = document.getElementById('llm-panel');
+      panel.style.display = 'block';
+      const out = document.getElementById('llm-text');
+      out.querySelectorAll('.cursor').forEach(c => c.remove());
+      if (!textSpan) { textSpan = document.createElement('span'); out.appendChild(textSpan); }
+      textSpan.textContent += (ev.text || '');
+      const cur = document.createElement('span'); cur.className = 'cursor';
+      out.appendChild(cur);
+      panel.scrollTop = panel.scrollHeight;
+      break;
+    }
+
+    case 'error':
+      activateAgent(null);
+      addTrace('ev-error','b-error','ERROR', `⚠️ ${esc(ev.message)}`);
+      break;
+
+    case 'done':
+      activateAgent(null);
+      document.getElementById('llm-text').querySelectorAll('.cursor').forEach(c=>c.remove());
+      addTrace('ev-done','b-done','DONE', '✓ 스트리밍 완료');
+      textSpan = null;
+      break;
+  }
+}
+
+// ── Main send ────────────────────────────────────────────────
+async function send(message) {
+  if (!message.trim() || streaming) return;
+  clearAll();
+  streaming = true;
+
+  startTime = Date.now();
+  timerID   = setInterval(updateElapsed, 100);
+  document.getElementById('chip-status').style.display = 'inline';
+  setBtnBusy();
+  activateAgent('super');
+  addTrace('ev-status','b-start','START', `<b>${esc(message)}</b>`);
+
+  abortCtrl = new AbortController();
+
+  try {
+    const resp = await fetch('/api/v1/chat/stream', {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify({ message }),
+      signal : abortCtrl.signal,
+    });
+
+    const reader  = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const parts = buf.split('\n\n');
+      buf = parts.pop();
+      for (const part of parts) {
+        if (!part.trimStart().startsWith('data:')) continue;
+        try { handleEvent(JSON.parse(part.replace(/^data:\s*/,'').trim())); }
+        catch {}
+      }
+    }
+  } catch (e) {
+    if (e.name !== 'AbortError')
+      addTrace('ev-error','b-error','ERROR', esc(String(e)));
+  } finally {
+    streaming = false;
+    clearInterval(timerID); updateElapsed();
+    activateAgent(null);
+    document.getElementById('chip-status').style.display = 'none';
+    document.getElementById('llm-text').querySelectorAll('.cursor').forEach(c=>c.remove());
+    setBtnIdle();
+  }
+}
+
+// ── Input bindings ───────────────────────────────────────────
+const qInput = document.getElementById('q-input');
+setBtnIdle();
+qInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(qInput.value); }
+});
+</script>
+</body>
+</html>

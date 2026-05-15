@@ -17,3 +17,8 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 @app.get("/")
 async def root():
     return FileResponse("app/static/index.html")
+
+
+@app.get("/devui")
+async def devui():
+    return FileResponse("app/static/devui.html")

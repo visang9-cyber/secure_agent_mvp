@@ -1,0 +1,379 @@
+{
+  "version": "1.0.0",
+  "components": {
+    "teams": [
+      {
+        "provider": "autogen_agentchat.teams.SelectorGroupChat",
+        "component_type": "team",
+        "version": 1,
+        "component_version": 1,
+        "description": "A group chat team that have participants takes turn to publish a message\n    to all, using a ChatCompletion model to select the next speaker after each message.",
+        "label": "SelectorGroupChat",
+        "config": {
+          "participants": [
+            {
+              "provider": "autogen_agentchat.agents.AssistantAgent",
+              "component_type": "agent",
+              "version": 1,
+              "component_version": 1,
+              "description": "An agent that provides assistance with tool use.",
+              "label": "AssistantAgent",
+              "config": {
+                "name": "super_agent",
+                "model_client": {
+                  "provider": "autogen_ext.models.openai.OpenAIChatCompletionClient",
+                  "component_type": "model",
+                  "version": 1,
+                  "component_version": 1,
+                  "description": "Chat completion client for OpenAI hosted models.",
+                  "label": "OpenAIChatCompletionClient",
+                  "config": {
+                    "model": "gpt-4o",
+                    "api_key": "**********"
+                  }
+                },
+                "workbench": {
+                  "provider": "autogen_core.tools.StaticWorkbench",
+                  "component_type": "workbench",
+                  "version": 1,
+                  "component_version": 1,
+                  "description": "A workbench that provides a static set of tools that do not change after\n    each tool execution.",
+                  "label": "StaticWorkbench",
+                  "config": {
+                    "tools": []
+                  }
+                },
+                "model_context": {
+                  "provider": "autogen_core.model_context.UnboundedChatCompletionContext",
+                  "component_type": "chat_completion_context",
+                  "version": 1,
+                  "component_version": 1,
+                  "description": "An unbounded chat completion context that keeps a view of the all the messages.",
+                  "label": "UnboundedChatCompletionContext",
+                  "config": {}
+                },
+                "description": "사용자 의도 파악 및 서브에이전트 조율 오케스트레이터",
+                "system_message": "당신은 멀티에이전트 팀의 오케스트레이터(SuperAgent)입니다.\n\n서브에이전트:\n- weather_agent  : 날씨 조회\n- golf_agent     : 골프장 예약 현황\n- schedule_agent : 내 일정 조회\n- planner_agent  : 2개 이상 도메인 복합 분석 및 TOP 5 추천\n\n역할:\n1. 사용자 메시지를 분석해 필요한 에이전트를 파악합니다.\n2. 서브에이전트 결과를 받아 사용자에게 자연스러운 한국어로 최종 요약을 제공합니다.\n3. 답변 완료 후 반드시 마지막에 \"TERMINATE\"를 출력해 세션을 종료합니다.",
+                "model_client_stream": false,
+                "reflect_on_tool_use": false,
+                "tool_call_summary_format": "{result}",
+                "metadata": {}
+              }
+            },
+            {
+              "provider": "autogen_agentchat.agents.AssistantAgent",
+              "component_type": "agent",
+              "version": 1,
+              "component_version": 1,
+              "description": "An agent that provides assistance with tool use.",
+              "label": "AssistantAgent",
+              "config": {
+                "name": "weather_agent",
+                "model_client": {
+                  "provider": "autogen_ext.models.openai.OpenAIChatCompletionClient",
+                  "component_type": "model",
+                  "version": 1,
+                  "component_version": 1,
+                  "description": "Chat completion client for OpenAI hosted models.",
+                  "label": "OpenAIChatCompletionClient",
+                  "config": {
+                    "model": "gpt-4o",
+                    "api_key": "**********"
+                  }
+                },
+                "workbench": {
+                  "provider": "autogen_core.tools.StaticWorkbench",
+                  "component_type": "workbench",
+                  "version": 1,
+                  "component_version": 1,
+                  "description": "A workbench that provides a static set of tools that do not change after\n    each tool execution.",
+                  "label": "StaticWorkbench",
+                  "config": {
+                    "tools": [
+                      {
+                        "provider": "autogen_core.tools.FunctionTool",
+                        "component_type": "tool",
+                        "version": 1,
+                        "component_version": 1,
+                        "description": "Create custom tools by wrapping standard Python functions.",
+                        "label": "FunctionTool",
+                        "config": {
+                          "source_code": "async def get_weather(year: int, month: int, location: str = \"서울\") -> str:\n    \"\"\"서울 등 도시의 월별 날씨 예보를 조회합니다.\n\n    Args:\n        year: 연도 (예: 2026)\n        month: 월 (1-12)\n        location: 도시명 (기본값: 서울)\n    \"\"\"\n    from app.agents.weather_agent import WeatherAgent\n    result = await WeatherAgent().run(year=year, month=month, location=location)\n    data = result[\"data\"]\n    lines = [f\"📅 {data['year']}년 {data['month']}월 날씨 ({data['location']})\"]\n    for day in data[\"days\"]:\n        lines.append(\n            f\"  {day['date']}: {day['icon']} {day['min_temp']}°~{day['max_temp']}° ({day['condition']})\"\n        )\n    return \"\\n\".join(lines)\n",
+                          "name": "get_weather",
+                          "description": "서울 등 도시의 월별 날씨 예보를 조회합니다.\n\n    Args:\n        year: 연도 (예: 2026)\n        month: 월 (1-12)\n        location: 도시명 (기본값: 서울)\n    ",
+                          "global_imports": [],
+                          "has_cancellation_support": false
+                        }
+                      }
+                    ]
+                  }
+                },
+                "model_context": {
+                  "provider": "autogen_core.model_context.UnboundedChatCompletionContext",
+                  "component_type": "chat_completion_context",
+                  "version": 1,
+                  "component_version": 1,
+                  "description": "An unbounded chat completion context that keeps a view of the all the messages.",
+                  "label": "UnboundedChatCompletionContext",
+                  "config": {}
+                },
+                "description": "날씨/기온/예보/우산 관련 질문 전담 에이전트",
+                "system_message": "당신은 날씨 정보 전문 에이전트입니다. get_weather 도구로 날씨를 조회한 뒤 결과를 간결하게 정리해 주세요. 추가 행동 없이 결과만 반환하세요.",
+                "model_client_stream": false,
+                "reflect_on_tool_use": false,
+                "tool_call_summary_format": "{result}",
+                "metadata": {}
+              }
+            },
+            {
+              "provider": "autogen_agentchat.agents.AssistantAgent",
+              "component_type": "agent",
+              "version": 1,
+              "component_version": 1,
+              "description": "An agent that provides assistance with tool use.",
+              "label": "AssistantAgent",
+              "config": {
+                "name": "golf_agent",
+                "model_client": {
+                  "provider": "autogen_ext.models.openai.OpenAIChatCompletionClient",
+                  "component_type": "model",
+                  "version": 1,
+                  "component_version": 1,
+                  "description": "Chat completion client for OpenAI hosted models.",
+                  "label": "OpenAIChatCompletionClient",
+                  "config": {
+                    "model": "gpt-4o",
+                    "api_key": "**********"
+                  }
+                },
+                "workbench": {
+                  "provider": "autogen_core.tools.StaticWorkbench",
+                  "component_type": "workbench",
+                  "version": 1,
+                  "component_version": 1,
+                  "description": "A workbench that provides a static set of tools that do not change after\n    each tool execution.",
+                  "label": "StaticWorkbench",
+                  "config": {
+                    "tools": [
+                      {
+                        "provider": "autogen_core.tools.FunctionTool",
+                        "component_type": "tool",
+                        "version": 1,
+                        "component_version": 1,
+                        "description": "Create custom tools by wrapping standard Python functions.",
+                        "label": "FunctionTool",
+                        "config": {
+                          "source_code": "async def get_golf_slots(date_from: str, date_to: str, region: str = \"\") -> str:\n    \"\"\"수도권 골프장의 일자별 예약 가능 슬롯을 조회합니다.\n\n    Args:\n        date_from: 시작일 YYYY-MM-DD\n        date_to: 종료일 YYYY-MM-DD\n        region: 지역 필터 (선택, 예: 용인시)\n    \"\"\"\n    from app.agents.golf_agent import GolfAgent\n    result = await GolfAgent().run(date_from=date_from, date_to=date_to, region=region)\n    courses = result[\"data\"][\"courses\"]\n    if not courses:\n        return f\"예약 가능한 슬롯이 없습니다 ({date_from} ~ {date_to}).\"\n    lines = [f\"⛳ 골프장 예약 현황 ({date_from} ~ {date_to})\"]\n    for c in courses[:15]:\n        times = \", \".join(c[\"tee_times\"])\n        lines.append(\n            f\"  {c['date']} | {c['name']} ({c['region']}) | \"\n            f\"{c['available_slots']}타임 [{times}] | {c['price_range']}\"\n        )\n    return \"\\n\".join(lines)\n",
+                          "name": "get_golf_slots",
+                          "description": "수도권 골프장의 일자별 예약 가능 슬롯을 조회합니다.\n\n    Args:\n        date_from: 시작일 YYYY-MM-DD\n        date_to: 종료일 YYYY-MM-DD\n        region: 지역 필터 (선택, 예: 용인시)\n    ",
+                          "global_imports": [],
+                          "has_cancellation_support": false
+                        }
+                      }
+                    ]
+                  }
+                },
+                "model_context": {
+                  "provider": "autogen_core.model_context.UnboundedChatCompletionContext",
+                  "component_type": "chat_completion_context",
+                  "version": 1,
+                  "component_version": 1,
+                  "description": "An unbounded chat completion context that keeps a view of the all the messages.",
+                  "label": "UnboundedChatCompletionContext",
+                  "config": {}
+                },
+                "description": "수도권 골프장 예약·티타임·가용 슬롯 조회 전담 에이전트",
+                "system_message": "당신은 골프장 예약 현황 전문 에이전트입니다. get_golf_slots 도구로 예약 가능 슬롯을 조회하고 결과를 반환하세요.",
+                "model_client_stream": false,
+                "reflect_on_tool_use": false,
+                "tool_call_summary_format": "{result}",
+                "metadata": {}
+              }
+            },
+            {
+              "provider": "autogen_agentchat.agents.AssistantAgent",
+              "component_type": "agent",
+              "version": 1,
+              "component_version": 1,
+              "description": "An agent that provides assistance with tool use.",
+              "label": "AssistantAgent",
+              "config": {
+                "name": "schedule_agent",
+                "model_client": {
+                  "provider": "autogen_ext.models.openai.OpenAIChatCompletionClient",
+                  "component_type": "model",
+                  "version": 1,
+                  "component_version": 1,
+                  "description": "Chat completion client for OpenAI hosted models.",
+                  "label": "OpenAIChatCompletionClient",
+                  "config": {
+                    "model": "gpt-4o",
+                    "api_key": "**********"
+                  }
+                },
+                "workbench": {
+                  "provider": "autogen_core.tools.StaticWorkbench",
+                  "component_type": "workbench",
+                  "version": 1,
+                  "component_version": 1,
+                  "description": "A workbench that provides a static set of tools that do not change after\n    each tool execution.",
+                  "label": "StaticWorkbench",
+                  "config": {
+                    "tools": [
+                      {
+                        "provider": "autogen_core.tools.FunctionTool",
+                        "component_type": "tool",
+                        "version": 1,
+                        "component_version": 1,
+                        "description": "Create custom tools by wrapping standard Python functions.",
+                        "label": "FunctionTool",
+                        "config": {
+                          "source_code": "async def get_my_schedule(date_from: str, date_to: str) -> str:\n    \"\"\"사용자의 일정을 조회합니다 (Mock MSA, seed=42 고정).\n\n    Args:\n        date_from: 시작일 YYYY-MM-DD\n        date_to: 종료일 YYYY-MM-DD\n    \"\"\"\n    from app.api.mock_schedule import _generate_day\n    from app.core.config import settings\n\n    start = date.fromisoformat(date_from)\n    end   = date.fromisoformat(date_to)\n    lines = [f\"📅 내 일정 ({date_from} ~ {date_to})\"]\n    current = start\n    while current <= end:\n        events = _generate_day(current, settings.schedule_seed)\n        if events:\n            lines.append(f\"\\n  [{current.isoformat()}]\")\n            for e in events:\n                lines.append(f\"    {e['time']} {e['title']}\")\n        else:\n            lines.append(f\"\\n  [{current.isoformat()}] 일정 없음\")\n        current += timedelta(days=1)\n    return \"\\n\".join(lines)\n",
+                          "name": "get_my_schedule",
+                          "description": "사용자의 일정을 조회합니다 (Mock MSA, seed=42 고정).\n\n    Args:\n        date_from: 시작일 YYYY-MM-DD\n        date_to: 종료일 YYYY-MM-DD\n    ",
+                          "global_imports": [],
+                          "has_cancellation_support": false
+                        }
+                      }
+                    ]
+                  }
+                },
+                "model_context": {
+                  "provider": "autogen_core.model_context.UnboundedChatCompletionContext",
+                  "component_type": "chat_completion_context",
+                  "version": 1,
+                  "component_version": 1,
+                  "description": "An unbounded chat completion context that keeps a view of the all the messages.",
+                  "label": "UnboundedChatCompletionContext",
+                  "config": {}
+                },
+                "description": "사용자 일정·약속·회의·스케줄 조회 전담 에이전트 (Mock MSA)",
+                "system_message": "당신은 일정 관리 전문 에이전트입니다. get_my_schedule 도구로 사용자 일정을 조회하고 결과를 반환하세요.",
+                "model_client_stream": false,
+                "reflect_on_tool_use": false,
+                "tool_call_summary_format": "{result}",
+                "metadata": {}
+              }
+            },
+            {
+              "provider": "autogen_agentchat.agents.AssistantAgent",
+              "component_type": "agent",
+              "version": 1,
+              "component_version": 1,
+              "description": "An agent that provides assistance with tool use.",
+              "label": "AssistantAgent",
+              "config": {
+                "name": "planner_agent",
+                "model_client": {
+                  "provider": "autogen_ext.models.openai.OpenAIChatCompletionClient",
+                  "component_type": "model",
+                  "version": 1,
+                  "component_version": 1,
+                  "description": "Chat completion client for OpenAI hosted models.",
+                  "label": "OpenAIChatCompletionClient",
+                  "config": {
+                    "model": "gpt-4o",
+                    "api_key": "**********"
+                  }
+                },
+                "workbench": {
+                  "provider": "autogen_core.tools.StaticWorkbench",
+                  "component_type": "workbench",
+                  "version": 1,
+                  "component_version": 1,
+                  "description": "A workbench that provides a static set of tools that do not change after\n    each tool execution.",
+                  "label": "StaticWorkbench",
+                  "config": {
+                    "tools": [
+                      {
+                        "provider": "autogen_core.tools.FunctionTool",
+                        "component_type": "tool",
+                        "version": 1,
+                        "component_version": 1,
+                        "description": "Create custom tools by wrapping standard Python functions.",
+                        "label": "FunctionTool",
+                        "config": {
+                          "source_code": "async def get_golf_recommendations(\n    date_from: str,\n    date_to: str,\n    location: str = \"서울\",\n    include_schedule: bool = True,\n) -> str:\n    \"\"\"날씨·골프장·일정을 종합 분석해 최적 골프 라운드 TOP 5를 추천합니다.\n\n    Args:\n        date_from: 시작일 YYYY-MM-DD\n        date_to: 종료일 YYYY-MM-DD\n        location: 기준 도시 (기본값: 서울)\n        include_schedule: 내 일정 충돌 고려 여부 (기본값: True)\n    \"\"\"\n    from app.agents.planner_agent import PlannerAgent\n    intents = [\"weather\", \"golf\"] + ([\"schedule\"] if include_schedule else [])\n    result = await PlannerAgent().run(\n        intents=intents, date_from=date_from, date_to=date_to, location=location\n    )\n    data = result[\"data\"]\n    recs  = data.get(\"recommendations\", [])\n    if not recs:\n        return \"추천 가능한 라운드가 없습니다. 날짜 범위를 넓혀 보세요.\"\n    lines = [\n        f\"🏆 골프 라운드 TOP {len(recs)} 추천 ({date_from} ~ {date_to})\",\n        f\"채점 기준: {data['criteria']}\",\n        \"\",\n    ]\n    for r in recs:\n        lines.append(\n            f\"  #{r['rank']} {r['date']}({r['weekday']}) {r['course_name']} | \"\n            f\"{r['weather_icon']} {r['weather_temp']} | {r['schedule_label']} | \"\n            f\"추천티타임: {r['best_tee_time']} | {r['price_range']} | 점수: {r['score']}\"\n        )\n        lines.append(f\"       예약링크: {r['link']}\")\n    return \"\\n\".join(lines)\n",
+                          "name": "get_golf_recommendations",
+                          "description": "날씨·골프장·일정을 종합 분석해 최적 골프 라운드 TOP 5를 추천합니다.\n\n    Args:\n        date_from: 시작일 YYYY-MM-DD\n        date_to: 종료일 YYYY-MM-DD\n        location: 기준 도시 (기본값: 서울)\n        include_schedule: 내 일정 충돌 고려 여부 (기본값: True)\n    ",
+                          "global_imports": [],
+                          "has_cancellation_support": false
+                        }
+                      }
+                    ]
+                  }
+                },
+                "model_context": {
+                  "provider": "autogen_core.model_context.UnboundedChatCompletionContext",
+                  "component_type": "chat_completion_context",
+                  "version": 1,
+                  "component_version": 1,
+                  "description": "An unbounded chat completion context that keeps a view of the all the messages.",
+                  "label": "UnboundedChatCompletionContext",
+                  "config": {}
+                },
+                "description": "날씨·골프장·일정을 종합 분석해 최적 골프 라운드 TOP 5를 추천하는 에이전트",
+                "system_message": "당신은 골프 라운드 추천 전문 에이전트입니다. get_golf_recommendations 도구로 날씨·골프장·일정을 종합 분석해 TOP 5를 추천하세요.",
+                "model_client_stream": false,
+                "reflect_on_tool_use": false,
+                "tool_call_summary_format": "{result}",
+                "metadata": {}
+              }
+            }
+          ],
+          "model_client": {
+            "provider": "autogen_ext.models.openai.OpenAIChatCompletionClient",
+            "component_type": "model",
+            "version": 1,
+            "component_version": 1,
+            "description": "Chat completion client for OpenAI hosted models.",
+            "label": "OpenAIChatCompletionClient",
+            "config": {
+              "model": "gpt-4o",
+              "api_key": "**********"
+            }
+          },
+          "termination_condition": {
+            "provider": "autogen_agentchat.base.OrTerminationCondition",
+            "component_type": "termination",
+            "version": 1,
+            "component_version": 1,
+            "label": "OrTerminationCondition",
+            "config": {
+              "conditions": [
+                {
+                  "provider": "autogen_agentchat.conditions.TextMentionTermination",
+                  "component_type": "termination",
+                  "version": 1,
+                  "component_version": 1,
+                  "description": "Terminate the conversation if a specific text is mentioned.",
+                  "label": "TextMentionTermination",
+                  "config": {
+                    "text": "TERMINATE"
+                  }
+                },
+                {
+                  "provider": "autogen_agentchat.conditions.MaxMessageTermination",
+                  "component_type": "termination",
+                  "version": 1,
+                  "component_version": 1,
+                  "description": "Terminate the conversation after a maximum number of messages have been exchanged.",
+                  "label": "MaxMessageTermination",
+                  "config": {
+                    "max_messages": 15,
+                    "include_agent_event": false
+                  }
+                }
+              ]
+            }
+          },
+          "selector_prompt": "다음 대화를 보고 다음 발언자를 한 명 선택하세요.\n\n에이전트 역할:\n- super_agent : 오케스트레이터. 사용자 메시지 분석 및 최종 요약 답변\n- weather_agent : 날씨/기온/예보 조회 전담\n- golf_agent : 수도권 골프장 예약 현황 조회 전담\n- schedule_agent : 사용자 일정 조회 전담 (Mock MSA)\n- planner_agent : 날씨+골프+일정 복합 TOP 5 추천 전담 (복합 요청 시)\n\n선택 규칙:\n1. 사용자의 첫 메시지 → super_agent\n2. super_agent가 단일 도메인 요청 확인 → 해당 전문 에이전트\n3. super_agent가 2개+ 도메인 복합 요청 확인 → planner_agent\n4. 전문 에이전트 결과 반환 후 → super_agent (최종 답변)\n5. super_agent가 TERMINATE 발화 → 종료\n\n대화 기록:\n{history}\n\n다음 발언자(에이전트 이름만):",
+          "allow_repeated_speaker": false,
+          "max_selector_attempts": 3,
+          "emit_team_events": false,
+          "model_client_streaming": false
+        }
+      }
+    ]
+  }
+}
